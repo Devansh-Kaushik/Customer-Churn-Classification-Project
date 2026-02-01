@@ -402,13 +402,17 @@ with tab3:
                 import seaborn as sns
                 import matplotlib.pyplot as plt
                 
-                fig, ax = plt.subplots(figsize=(3, 2))
-                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, cbar=False)
-                ax.set_title(f"Confusion Matrix: {selected_model_name}", fontsize=8)
-                ax.set_ylabel('Actual', fontsize=8)
-                ax.set_xlabel('Predicted', fontsize=8)
-                ax.tick_params(axis='both', which='major', labelsize=8)
-                st.pyplot(fig, use_container_width=False)
+                # Use columns to restrict the size of the plot
+                col_cm, _ = st.columns([1, 4])
+                
+                with col_cm:
+                    fig, ax = plt.subplots(figsize=(3, 2))
+                    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, cbar=False)
+                    ax.set_title(f"Confusion Matrix", fontsize=8)
+                    ax.set_ylabel('Actual', fontsize=8)
+                    ax.set_xlabel('Predicted', fontsize=8)
+                    ax.tick_params(axis='both', which='major', labelsize=8)
+                    st.pyplot(fig)
             except:
                 st.write(cm) # Fallback
         else:
