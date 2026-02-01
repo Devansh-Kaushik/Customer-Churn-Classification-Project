@@ -35,3 +35,6 @@ ENV/
 .DS_Store
 Thumbs.db
 model/random_forest.pkl
+
+# Ignore model artifacts
+model/
