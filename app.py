@@ -6,6 +6,10 @@ import os
 import time
 import xgboost as xgb
 
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "model"
+METRICS_CSV = BASE_DIR / "model_performance.csv"
 # --- P1: APP CONFIGURATION (Must be first) ---
 st.set_page_config(
     page_title="Churn & Retention Decision System",
@@ -73,37 +77,58 @@ st.markdown("""
 # --- P3: LOAD ARTIFACTS ---
 @st.cache_resource
 def load_artifacts():
-    if not os.path.exists("model"):
+    if not MODEL_DIR.exists():
+        st.error("🚨 Critical Error: Models not found. Please ensure the training pipeline has been executed.")
         return None, None, None, None, None
-    
+
     artifacts = {}
+
+    # Load scaler
     try:
-        with open("model/scaler.pkl", "rb") as f:
+        with open(MODEL_DIR / "scaler.pkl", "rb") as f:
             artifacts["scaler"] = pickle.load(f)
-        with open("model/label_encoders.pkl", "rb") as f:
-            artifacts["label_encoders"] = pickle.load(f)
-        
-        models = {}
-        model_files = [f for f in os.listdir("model") if f.endswith(".pkl") and f not in ["scaler.pkl", "preprocessor.pkl", "label_encoders.pkl", "confusion_matrices.pkl"]]
-        for name in model_files:
-            clean_name = name.replace(".pkl", "").replace("_", " ").title()
-            with open(f"model/{name}", "rb") as f:
-                 models[clean_name] = pickle.load(f)
-        
-        # Load Confusion Matrices
-        confusion_matrices = {}
-        if os.path.exists("model/confusion_matrices.pkl"):
-            with open("model/confusion_matrices.pkl", "rb") as f:
-                confusion_matrices = pickle.load(f)
-        
-        # Load Performance Metrics
-        metrics_df = None
-        if os.path.exists("model_performance.csv"):
-            metrics_df = pd.read_csv("model_performance.csv")
-            
-        return artifacts["scaler"], artifacts["label_encoders"], models, metrics_df, confusion_matrices
     except Exception as e:
-        return None, None, None, None, None
+        st.warning(f"Failed to load 'scaler.pkl': {e}")
+        artifacts["scaler"] = None
+
+    # Load label encoders
+    try:
+        with open(MODEL_DIR / "label_encoders.pkl", "rb") as f:
+            artifacts["label_encoders"] = pickle.load(f)
+    except Exception as e:
+        st.warning(f"Failed to load 'label_encoders.pkl': {e}")
+        artifacts["label_encoders"] = {}
+
+    # Load models (skip known non-model artifacts)
+    models = {}
+    model_files = [f for f in os.listdir(MODEL_DIR) if f.endswith(".pkl") and f not in ["scaler.pkl", "preprocessor.pkl", "label_encoders.pkl", "confusion_matrices.pkl"]]
+    for name in model_files:
+        clean_name = name.replace(".pkl", "").replace("_", " ").title()
+        try:
+            with open(MODEL_DIR / name, "rb") as f:
+                models[clean_name] = pickle.load(f)
+        except Exception as e:
+            st.warning(f"Could not load model '{name}': {e}")
+
+    # Load Confusion Matrices (non-blocking)
+    confusion_matrices = {}
+    if os.path.exists(MODEL_DIR / "confusion_matrices.pkl"):
+        try:
+            with open(MODEL_DIR / "confusion_matrices.pkl", "rb") as f:
+                confusion_matrices = pickle.load(f)
+        except Exception as e:
+            st.warning(f"Could not load 'confusion_matrices.pkl': {e}")
+            confusion_matrices = {}
+
+    # Load Performance Metrics (non-blocking)
+    metrics_df = None
+    if os.path.exists(METRICS_CSV):
+        try:
+            metrics_df = pd.read_csv(METRICS_CSV)
+        except Exception as e:
+            st.warning(f"Could not load '{METRICS_CSV}': {e}")
+
+    return artifacts["scaler"], artifacts["label_encoders"], models, metrics_df, confusion_matrices
 
 scaler, label_encoders, models, metrics_df, confusion_matrices = load_artifacts()
 
